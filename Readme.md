@@ -1,143 +1,162 @@
-# Task Management System
+### Django Task Management System API
 
-This Django application provides a comprehensive API for managing tasks. The functionalities include user creation, user authentication, task creation, and various views to interact with tasks and their statuses.
+---
 
-## Models
+#### Models
 
-### Task
+##### Task Model
+- `creator`: Stores information about the creator of the task. Reference to the built-in User model.
+- `executor`: Stores information about the executor of the task. Reference to the built-in User model. Can be empty.
+- `name`: The name of the task with a maximum length of 255 characters.
+- `cost`: The cost of the task. A decimal number with 8 digits in total and 2 decimal places.
+- `is_done`: The status of task completion. A boolean value.
+- `deadline`: The deadline for task completion.
 
-A model representing a task with the following fields:
+---
 
-- **creator**: ForeignKey to the built-in User model. Required.
-- **executor**: ForeignKey to the built-in User model. Optional.
-- **name**: CharField with a maximum length of 255 characters.
-- **cost**: DecimalField with a maximum of 8 digits and 2 decimal places.
-- **is_done**: BooleanField indicating task completion status.
-- **deadline**: DateTimeField for the task's deadline.
+#### Views
 
-## Views
+##### UserCreateView
+This view allows for the creation of a user.
 
-### UserCreateView
+1. Implement the `post` method to handle POST requests for creating a new user.
+2. Check for the presence of: `username`, `password`, and `email`. If any of these values are missing in the request body, return an error message `{'error': 'Username, password, and email are required'}` with the status code `400 BAD REQUEST`.
+3. Check if a user with the specified `username` already exists. If a user with this username already exists, return an error message `{'error': 'Username already exists'}` with the status code `400 BAD REQUEST`.
+4. If all data is valid, create a new user. Upon successful creation of the user, return a user data (id, username, email) in JSON format with the status code `201 CREATED`.
 
-Allows the creation of a user.
+Hint: To work with the `User` model and send HTTP responses, use the appropriate functions from Django REST Framework: `User.objects.create_user`, `Response`.
 
-- **POST**: Creates a new user.
-  - Requires `username`, `password`, and `email`.
-  - Validates the presence of required fields.
-  - Checks if the username already exists.
-  - Returns user data on successful creation.
+##### LoginView
+This view allows a user to authenticate and receive a token.
 
-### LoginView
+1. Implement the `post` method to handle POST requests for user authentication.
+2. Retrieve the `username` and `password` from the request. Attempt to authenticate the user.
+3. If authentication is successful and the user exists, log the user into the system. Create or retrieve the user's authentication token using the `Token` model. If the token is successfully created or retrieved, return it in the response `{'token': <token value>}` with the status code `200 OK`.
+4. If authentication fails or incorrect data is provided, return an error message `{'error': 'Invalid credentials'}` with the status code `401 UNAUTHORIZED`.
 
-Allows user authentication and token retrieval.
+##### LogoutView
+This view allows for the deletion of a user's token.
 
-- **POST**: Authenticates the user and returns an authentication token.
-  - Requires `username` and `password`.
-  - Returns an error if authentication fails.
+1. Only authenticated users can use this view.
+2. Implement the `post` method to handle POST requests for logging the user out.
+3. Delete the user's authentication token.
+4. Return a message indicating successful logout `{'message': 'Successfully logged out'}` with the status code `200 OK` if the token is successfully deleted.
 
-### LogoutView
+##### TaskCreateView
+This view allows for the creation of a new task.
 
-Allows an authenticated user to log out.
+1. Define the `post` method to handle POST requests.
+2. The creator of the task is specified as the current authenticated user.
+3. If the current user is specified as the executor, return an error message `{'error': 'The creator of a task cannot be its executor'}` with the status code 400 (HTTP_400_BAD_REQUEST).
+4. If the data includes an executor, check if a user with the given executor_id exists. If a user with this executor_id does not exist, set the executor to None.
+5. Create a task with the resulting data and return the created task's data with the status code 201 (HTTP_201_CREATED).
+6. If the data is invalid, return validation errors (serializer.errors) with the status code 400 (HTTP_400_BAD_REQUEST).
 
-- **POST**: Deletes the user's authentication token.
-  - Requires authentication.
+Required fields for the request: executor, name, cost, deadline.
 
-### TaskCreateView
+##### TasksCreatedByUser
+This view allows displaying the tasks created by the current user.
 
-Allows the creation of a new task.
+1. Only authenticated users can use this view.
+2. This view should return a complete description of all tasks created by the user in the form of a list.
 
-- **POST**: Creates a new task.
-  - Requires `executor`, `name`, `cost`, and `deadline`.
-  - Sets the creator as the current authenticated user.
-  - Validates the creator is not the executor.
-  - Checks if the specified executor exists.
+Fields for each task: executor, name, cost, deadline.
 
-### TasksCreatedByUser
+##### TaskWithExecutorAPIView
+This view allows displaying all existing tasks.
 
-Displays tasks created by the current user.
+1. This view should return a list of all tasks.
+2. If a task does not have an executor specified, the JSON should have "undefined" as the value for the executor.
 
-- **GET**: Returns a list of tasks created by the authenticated user.
-  - Requires authentication.
+Fields for each task: executor, name, cost, deadline.
 
-### TaskWithExecutorAPIView
+##### UserTasksAPIView
+This view allows displaying all tasks of the current user.
 
-Displays all existing tasks.
+1. Only authenticated users can use this view.
+2. This view should return all tasks where the current user is specified as the executor.
 
-- **GET**: Returns a list of all tasks, marking undefined executors as "undefined".
+Fields for each task: executor, name, cost, deadline.
 
-### UserTasksAPIView
+##### UserTasksStatsAPIView
+This view allows displaying statistics for the tasks of the current user.
 
-Displays tasks assigned to the current user.
+1. Only authenticated users can use this view.
+2. The `get` method should return the following statistics in JSON format:
+   - Number of completed tasks (key: `completed_tasks`)
+   - Number of pending tasks (key: `pending_tasks`)
+   - Number of overdue tasks (key: `overdue_tasks`)
+   - Number of tasks assigned to the user (key: `assigned_tasks`)
+   - Total amount earned: The sum of the cost of all tasks completed by this user (key: `total_earned`)
+   - Total amount spent: The sum of the cost of all tasks assigned by this user (key: `total_spent`)
+3. The values for `total_earned` and `total_spent` should be 0 if there are no corresponding tasks (handle None values).
+4. The response should be returned in JSON format with a status code of 200 OK.
 
-- **GET**: Returns a list of tasks where the current user is the executor.
-  - Requires authentication.
+Example result: `{'completed_tasks': 0, 'pending_tasks': 5, 'overdue_tasks': 0, 'assigned_tasks': 1, 'total_earned': 0, 'total_spent': 6000.0}`
 
-### UserTasksStatsAPIView
+##### UnassignedTasksAPIView
+This view should display all tasks without an assigned executor.
 
-Displays statistics for the tasks of the current user.
+1. Only authenticated users can use this view.
+2. The `get` method should return a list of tasks without an assigned executor.
+3. The tasks should be sorted by cost in ascending order.
+4. The response should be returned in JSON format with a status code of 200 OK.
 
-- **GET**: Returns statistics including completed tasks, pending tasks, overdue tasks, assigned tasks, total earned, and total spent.
-  - Requires authentication.
+Fields for each task: executor, name, cost, deadline.
 
-### UnassignedTasksAPIView
+##### BecomeExecutorAPIView
+This view allows the user to become the executor of the task.
 
-Displays all tasks without an assigned executor.
-
-- **GET**: Returns a list of tasks without an executor, sorted by cost.
-  - Requires authentication.
-
-### BecomeExecutorAPIView
-
-Allows a user to become the executor of a task.
-
-- **PATCH**: Assigns the current user as the executor of a specified task.
-  - Requires task identifier through URL.
-  - Validates the task's existence and current executor status.
-  - Requires authentication.
+1. Only authenticated users can use this view.
+2. The view should implement the `patch` method, which receives the task identifier through the URL.
+3. If the task is not found, return an error message `{'error': 'Task not found'}` with the status code `404 Not Found`.
+4. If the current user is the creator of the task, return an error message `{'error': 'You cannot assign yourself as executor of your own task'}` with the status code `400 Bad Request`.
+5. If the task already has an executor, return an error message `{'error': 'This task already has an executor'}` with the status code `400 Bad Request`.
+6. If the task is available for assignment, set the current user as the executor and save the task.
+8. Return a successful response with the status code `200 OK` and the message `{'message': 'You have been assigned as the executor of the task'}`.
 
 ### MarkTaskDoneAPIView
 
-Allows marking a task as done.
+This view allows marking a task as done.
 
-- **PATCH**: Marks the specified task as done.
-  - Requires task identifier through URL.
-  - Validates task's existence and executor status.
-  - Requires authentication.
+1. Only authenticated users can use this view.
+2. The view implements the `patch` method, which receives the task identifier through the URL.
+3. If the task is not found, it returns an error message `{'error': 'Task not found'}` with the status code `404 Not Found`.
+4. If the current user is not the executor of the task, it returns an error message `{'error': 'You are not authorized to mark this task as done'}` with the status code `400 Bad Request`.
+5. If all checks pass successfully, it sets the value of the `is_done` field to True for the current task and saves the changes.
+6. It returns a successful response with the status code `200 OK`, passing the modified task data in JSON format as the response data.
+
+Fields for the task: executor, name, cost, deadline.
+
+### URLs
+
+```python
+urlpatterns = [
+    path('app/user/create/', UserCreateView.as_view(), name='user_create'),
+    path('app/login/', LoginView.as_view(), name='login'),
+    path('app/logout/', LogoutView.as_view(), name='logout'),
+    path('app/task/create/', TaskCreateView.as_view(), name='task_create'),
+    path('app/tasks-created-by-user/', TasksCreatedByUser.as_view(), name='user_tasks'),
+    path('app/user-tasks-stats/', UserTasksStatsAPIView.as_view(), name='user-tasks-stats'),
+    path('app/unassigned-tasks/', UnassignedTasksAPIView.as_view(), name='unassigned-tasks'),
+    path('app/task/executor/', TaskWithExecutorAPIView.as_view(), name='task_executor'),
+    path('app/user-tasks/', UserTasksAPIView.as_view(), name='my-tasks'),
+    path('app/become-executor/<int:task_id>/', BecomeExecutorAPIView.as_view(), name='become-executor'),
+    path('app/mark-task-done/<int:task_id>/', MarkTaskDoneAPIView.as_view(), name='mark-task-done'),
+    path('app/clear_db/', ClearDatabaseView.as_view(), name='clear_db'),
+]
+```
 
 ### ClearDatabaseView
 
-Clears all data from the models. Useful for testing.
+This view clears the models for testing the API.
 
-- **POST**: Deletes all Task and User entries.
-  - Returns a success message.
-
-## URLS
-
-The URLs for the application are prefixed with `app/`.
-
-```plaintext
-path('app/user/create/', UserCreateView.as_view(), name='user_create'),
-path('app/login/', LoginView.as_view(), name='login'),
-path('app/logout/', LogoutView.as_view(), name='logout'),
-path('app/task/create/', TaskCreateView.as_view(), name='task_create'),
-path('app/tasks-created-by-user/', TasksCreatedByUser.as_view(), name='user_tasks'),
-path('app/user-tasks-stats/', UserTasksStatsAPIView.as_view(), name='user-tasks-stats'),
-path('app/unassigned-tasks/', UnassignedTasksAPIView.as_view(), name='unassigned-tasks'),
-path('app/task/executor/', TaskWithExecutorAPIView.as_view(), name='task_executor'),
-path('app/user-tasks/', UserTasksAPIView.as_view(), name='my-tasks'),
-path('app/become-executor/<int:task_id>/', BecomeExecutorAPIView.as_view(), name='become-executor'),
-path('app/mark-task-done/<int:task_id>/', MarkTaskDoneAPIView.as_view(), name='mark-task-done'),
-path('app/clear_db/', ClearDatabaseView.as_view(), name='clear_db'),
+```python
+class ClearDatabaseView(APIView):
+    def post(self, request):
+        Task.objects.all().delete()
+        User.objects.all().delete()
+        return Response({'message': 'All data cleared successfully'}, status=200)
 ```
 
-## Usage
-
-Run the Django development server and navigate to the endpoints to interact with the task management system.
-
-### Example URLs
-
-- User creation: `http://127.0.0.1:8000/app/user/create/`
-- User login: `http://127.0.0.1:8000/app/login/`
-- Task creation: `http://127.0.0.1:8000/app/task/create/`
-
-Ensure you are authenticated to access protected endpoints.
+This view is accessible at `app/clear_db/` and deletes all tasks and users from the database when accessed via a POST request.
