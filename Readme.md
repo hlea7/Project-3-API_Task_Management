@@ -16,6 +16,8 @@
 
 #### Views
 
+##### [First student's tasks]
+
 ##### UserCreateView
 This view allows for the creation of a user.
 
@@ -69,6 +71,8 @@ This view allows displaying all existing tasks.
 2. If a task does not have an executor specified, the JSON should have "undefined" as the value for the executor.
 
 Fields for each task: executor, name, cost, deadline.
+
+##### [Second student's tasks]
 
 ##### UserTasksAPIView
 This view allows displaying all tasks of the current user.
