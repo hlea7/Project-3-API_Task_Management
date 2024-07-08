@@ -2,6 +2,7 @@ import unittest
 import requests
 import json 
 import os
+from datetime import datetime, timedelta
 
 def get_url():
     config_path = os.path.join(os.path.dirname(__file__), 'configs.json')
@@ -19,16 +20,27 @@ class UserTasksStatsAPIViewTestCase(unittest.TestCase):
 
         self.token = self.login_user('executor_user', 'executor_password')
         self.headers = {'Authorization': f'Token {self.token}'}
-        self.task_id6 = self.create_task('Spent Task', 50, '2024-06-25', self.user_id)
-        self.task_id7 = self.create_task('Spent Task', 150, '2024-06-25', self.user_id, True)
+
+        current_date = datetime.now()
+
+        overdue_date1 = (current_date - timedelta(days=30)).strftime('%Y-%m-%d')
+        overdue_date2 = (current_date - timedelta(days=45)).strftime('%Y-%m-%d')
+        overdue_date3 = (current_date - timedelta(days=60)).strftime('%Y-%m-%d')
+
+        future_date1 = (current_date + timedelta(days=10)).strftime('%Y-%m-%d')
+        future_date2 = (current_date + timedelta(days=20)).strftime('%Y-%m-%d')
+        future_date3 = (current_date + timedelta(days=25)).strftime('%Y-%m-%d')
+        future_date4 = (current_date + timedelta(days=5)).strftime('%Y-%m-%d')
+        self.task_id6 = self.create_task('Spent Task', 50, future_date1, self.user_id)
+        self.task_id7 = self.create_task('Spent Task', 150, future_date2, self.user_id, True)
 
         self.token = self.login_user('test_user', 'test_password')
         self.headers = {'Authorization': f'Token {self.token}'}
-        self.task_id = self.create_task('Completed Task', 100, '2024-06-01', self.executor_id, True)
-        self.task_id2 = self.create_task('Pending Task', 150, '2024-06-10', self.executor_id, False)
-        self.task_id3 = self.create_task('Overdue Task', 200, '2024-05-01', self.executor_id, False)
-        self.task_id4 = self.create_task('Assigned Task', 300, '2024-06-20', self.executor_id)
-        self.task_id5 = self.create_task('Another Completed Task', 250, '2024-06-15', self.executor_id, True)
+        self.task_id = self.create_task('Completed Task', 100, overdue_date1, self.executor_id, True)
+        self.task_id2 = self.create_task('Pending Task', 150, future_date3, self.executor_id, False)
+        self.task_id3 = self.create_task('Overdue Task', 200, overdue_date2, self.executor_id, False)
+        self.task_id4 = self.create_task('Assigned Task', 300, future_date4, self.executor_id)
+        self.task_id5 = self.create_task('Another Completed Task', 250, overdue_date3, self.executor_id, True)
 
     def tearDown(self):
         self.clear_database()
